@@ -18,7 +18,7 @@ Create professional invoices instantly with a clean and modern UI 💼
 
 ## 🌐 Live Demo
 
-(Add your GitHub Pages link here)
+👉https://shahrishabh1513-jsk.github.io/nova-invoice-generator/
 
 ---
 
