@@ -1,0 +1,13 @@
+invoice-app/
+│
+├── index.html (Login/Signup Page)
+├── dashboard.html (Main Dashboard)
+├── css/
+│   ├── style.css (Common styles)
+│   ├── login.css (Login page styles)
+│   └── dashboard.css (Dashboard styles)
+├── js/
+│   ├── auth.js (Authentication)
+│   └── app.js (Invoice application)
+└── assets/
+    └── (icons - optional)

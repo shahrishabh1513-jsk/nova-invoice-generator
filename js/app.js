@@ -2,29 +2,29 @@
 let invoices = [];
 let currentInvoiceId = null;
 let currentItems = [];
-let editingInvoice = null;
+let currentUserId = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  loadInvoices();
+  loadUserInvoices();
   setupEventListeners();
   updateCalculations();
 });
 
-// Load from localStorage
-function loadInvoices() {
-  const stored = localStorage.getItem('nova_invoices');
-  if (stored) {
-    invoices = JSON.parse(stored);
-  } else {
-    invoices = [];
-  }
+// Load user-specific invoices
+window.loadUserInvoices = function(userId) {
+  currentUserId = userId;
+  const allInvoices = JSON.parse(localStorage.getItem('nova_invoices') || '[]');
+  invoices = allInvoices.filter(inv => inv.userId === userId);
   renderInvoiceList();
   updateInvoiceCount();
-}
+};
 
 function saveInvoices() {
-  localStorage.setItem('nova_invoices', JSON.stringify(invoices));
+  const allInvoices = JSON.parse(localStorage.getItem('nova_invoices') || '[]');
+  const otherInvoices = allInvoices.filter(inv => inv.userId !== currentUserId);
+  const updatedInvoices = [...otherInvoices, ...invoices];
+  localStorage.setItem('nova_invoices', JSON.stringify(updatedInvoices));
   renderInvoiceList();
   updateInvoiceCount();
 }
@@ -55,15 +55,17 @@ function formatDate(date) {
 // Render Invoice List
 function renderInvoiceList() {
   const container = document.getElementById('invoiceList');
-  const emptyState = document.getElementById('emptyState');
+  const emptyState = document.getElementById('emptyInvoices');
+  
+  if (!container) return;
   
   if (invoices.length === 0) {
+    if (emptyState) emptyState.classList.remove('hidden');
     container.innerHTML = '';
-    emptyState.classList.remove('hidden');
     return;
   }
   
-  emptyState.classList.add('hidden');
+  if (emptyState) emptyState.classList.add('hidden');
   container.innerHTML = invoices.map(invoice => `
     <div class="invoice-item ${currentInvoiceId === invoice.id ? 'active' : ''}" onclick="selectInvoice('${invoice.id}')">
       <div class="invoice-header">
@@ -82,30 +84,33 @@ function updateInvoiceCount() {
 }
 
 // Search Functionality
-document.getElementById('searchInput')?.addEventListener('input', (e) => {
-  const term = e.target.value.toLowerCase();
-  const filtered = invoices.filter(inv => 
-    inv.invoiceNumber.toLowerCase().includes(term) ||
-    inv.customer.name?.toLowerCase().includes(term) ||
-    inv.customer.email?.toLowerCase().includes(term)
-  );
-  
-  const container = document.getElementById('invoiceList');
-  if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>No matching invoices</p></div>';
-  } else {
-    container.innerHTML = filtered.map(invoice => `
-      <div class="invoice-item" onclick="selectInvoice('${invoice.id}')">
-        <div class="invoice-header">
-          <span class="invoice-number">${invoice.invoiceNumber}</span>
-          <span>${formatDate(invoice.date)}</span>
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+  searchInput.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = invoices.filter(inv => 
+      inv.invoiceNumber.toLowerCase().includes(term) ||
+      inv.customer.name?.toLowerCase().includes(term) ||
+      inv.customer.email?.toLowerCase().includes(term)
+    );
+    
+    const container = document.getElementById('invoiceList');
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="empty-invoices" style="text-align:center;padding:40px;"><p>No matching invoices</p></div>';
+    } else {
+      container.innerHTML = filtered.map(invoice => `
+        <div class="invoice-item" onclick="selectInvoice('${invoice.id}')">
+          <div class="invoice-header">
+            <span class="invoice-number">${invoice.invoiceNumber}</span>
+            <span>${formatDate(invoice.date)}</span>
+          </div>
+          <div class="invoice-customer">${invoice.customer.name || 'Guest'}</div>
+          <div class="invoice-amount">${formatCurrency(invoice.grandTotal)}</div>
         </div>
-        <div class="invoice-customer">${invoice.customer.name || 'Guest'}</div>
-        <div class="invoice-amount">${formatCurrency(invoice.grandTotal)}</div>
-      </div>
-    `).join('');
-  }
-});
+      `).join('');
+    }
+  });
+}
 
 // Select and Display Invoice
 window.selectInvoice = function(id) {
@@ -118,8 +123,10 @@ window.selectInvoice = function(id) {
 };
 
 function displayInvoice(invoice) {
-  const previewContainer = document.getElementById('previewContent');
+  const previewContainer = document.getElementById('invoicePreview');
   const emptyPreview = document.getElementById('emptyPreview');
+  
+  if (!previewContainer) return;
   
   emptyPreview.classList.add('hidden');
   previewContainer.classList.remove('hidden');
@@ -169,16 +176,9 @@ function displayInvoice(invoice) {
       
       <table class="items-table">
         <thead>
-          <tr>
-            <th>Item Description</th>
-            <th>Quantity</th>
-            <th>Unit Price</th>
-            <th>Total</th>
-          </tr>
+          <tr><th>Item Description</th><th>Quantity</th><th>Unit Price</th><th>Total</th></tr>
         </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
+        <tbody>${itemsHtml}</tbody>
       </table>
       
       <div class="payment-info">
@@ -188,28 +188,11 @@ function displayInvoice(invoice) {
       
       <div class="summary-section">
         <div class="summary-box">
-          <div class="summary-row">
-            <span>Subtotal:</span>
-            <span>${formatCurrency(invoice.subtotal)}</span>
-          </div>
-          <div class="summary-row">
-            <span>CGST (${invoice.cgstRate}%):</span>
-            <span>${formatCurrency(invoice.cgst)}</span>
-          </div>
-          <div class="summary-row">
-            <span>SGST (${invoice.sgstRate}%):</span>
-            <span>${formatCurrency(invoice.sgst)}</span>
-          </div>
-          ${invoice.discount > 0 ? `
-          <div class="summary-row">
-            <span>Discount (${invoice.discountPercent}%):</span>
-            <span>-${formatCurrency(invoice.discount)}</span>
-          </div>
-          ` : ''}
-          <div class="grand-total-row">
-            <span>Grand Total:</span>
-            <span>${formatCurrency(invoice.grandTotal)}</span>
-          </div>
+          <div class="summary-row"><span>Subtotal:</span><span>${formatCurrency(invoice.subtotal)}</span></div>
+          <div class="summary-row"><span>CGST (${invoice.cgstRate}%):</span><span>${formatCurrency(invoice.cgst)}</span></div>
+          <div class="summary-row"><span>SGST (${invoice.sgstRate}%):</span><span>${formatCurrency(invoice.sgst)}</span></div>
+          ${invoice.discount > 0 ? `<div class="summary-row"><span>Discount (${invoice.discountPercent}%):</span><span>-${formatCurrency(invoice.discount)}</span></div>` : ''}
+          <div class="grand-total-row"><span>Grand Total:</span><span>${formatCurrency(invoice.grandTotal)}</span></div>
         </div>
       </div>
       
@@ -233,9 +216,7 @@ function displayInvoice(invoice) {
 
 // Print Function
 window.printInvoice = function() {
-  const printContent = document.getElementById('previewContent').innerHTML;
-  const originalTitle = document.title;
-  document.title = 'Invoice Print';
+  const printContent = document.getElementById('invoicePreview').innerHTML;
   
   const printWindow = window.open('', '_blank');
   printWindow.document.write(`
@@ -246,20 +227,11 @@ window.printInvoice = function() {
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: 'Inter', sans-serif; 
-          padding: 2rem; 
-          background: white;
-          color: #0f172a;
-        }
-        @media print {
-          body { padding: 0; }
-          .print-btn { display: none; }
-        }
+        body { font-family: 'Inter', sans-serif; padding: 2rem; background: white; color: #0f172a; }
+        @media print { body { padding: 0; } .print-btn { display: none; } }
         .invoice-card { max-width: 100%; margin: 0 auto; }
         .invoice-header { display: flex; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
         .company-info h2 { font-size: 1.5rem; color: #6366f1; margin-bottom: 0.5rem; }
-        .company-info p { font-size: 0.75rem; color: #64748b; }
         .invoice-title { font-size: 2rem; font-weight: 700; }
         .billing-section { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
         .items-table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
@@ -270,36 +242,33 @@ window.printInvoice = function() {
         .summary-box { width: 320px; }
         .summary-row { display: flex; justify-content: space-between; padding: 0.5rem 0; }
         .grand-total-row { font-weight: 700; color: #6366f1; border-top: 2px solid #e2e8f0; margin-top: 0.5rem; padding-top: 0.75rem; }
-        .print-btn { margin-top: 2rem; text-align: right; }
       </style>
     </head>
-    <body>
-      ${printContent}
-      <script>
-        window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };
-      <\/script>
-    </body>
-    </html>
+    <body>${printContent}<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script></body></html>
   `);
   printWindow.document.close();
 };
 
 // Modal Management
-const modal = document.getElementById('modal');
-const createBtn = document.getElementById('createBtn');
+const modal = document.getElementById('invoiceModal');
+const createBtn = document.getElementById('createInvoiceBtn');
 const emptyCreateBtn = document.getElementById('emptyCreateBtn');
-const closeModal = document.getElementById('closeModal');
+const closeModal = document.getElementById('closeModalBtn');
 
 function openModal() {
-  modal.classList.add('active');
-  resetModal();
-  document.getElementById('step1').classList.add('active');
-  document.getElementById('step2').classList.remove('active');
+  if (modal) {
+    modal.classList.add('active');
+    resetModal();
+    document.getElementById('step1').classList.add('active');
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('modalTitle').textContent = 'Create New Invoice';
+  }
 }
 
 function closeModalFunc() {
-  modal.classList.remove('active');
-  resetForm();
+  if (modal) {
+    modal.classList.remove('active');
+  }
 }
 
 function resetModal() {
@@ -316,20 +285,16 @@ function resetModal() {
   updateCalculations();
 }
 
-function resetForm() {
-  currentItems = [];
-}
-
-createBtn?.addEventListener('click', openModal);
-emptyCreateBtn?.addEventListener('click', openModal);
-closeModal?.addEventListener('click', closeModalFunc);
+if (createBtn) createBtn.addEventListener('click', openModal);
+if (emptyCreateBtn) emptyCreateBtn.addEventListener('click', openModal);
+if (closeModal) closeModal.addEventListener('click', closeModalFunc);
 
 // Step Navigation
-document.getElementById('nextStep1')?.addEventListener('click', () => {
+document.getElementById('nextToStep2')?.addEventListener('click', () => {
   const name = document.getElementById('custName').value.trim();
   const email = document.getElementById('custEmail').value.trim();
   if (!name || !email) {
-    alert('Please enter customer name and email');
+    showToast('Please enter customer name and email', 'error');
     return;
   }
   document.getElementById('step1').classList.remove('active');
@@ -337,15 +302,15 @@ document.getElementById('nextStep1')?.addEventListener('click', () => {
   document.getElementById('modalTitle').textContent = 'Add Items & Payment';
 });
 
-document.getElementById('backStep1')?.addEventListener('click', () => {
+document.getElementById('backToStep1')?.addEventListener('click', () => {
   document.getElementById('step2').classList.remove('active');
   document.getElementById('step1').classList.add('active');
-  document.getElementById('modalTitle').textContent = 'Create Invoice';
+  document.getElementById('modalTitle').textContent = 'Create New Invoice';
 });
 
 // Items Management
 function renderItemsTable() {
-  const tbody = document.getElementById('itemsBody');
+  const tbody = document.getElementById('itemsTableBody');
   if (!tbody) return;
   
   tbody.innerHTML = currentItems.map((item, index) => `
@@ -365,13 +330,13 @@ window.removeItem = function(index) {
   renderItemsTable();
 };
 
-document.getElementById('addItemBtn')?.addEventListener('click', () => {
+document.getElementById('addItemButton')?.addEventListener('click', () => {
   const name = document.getElementById('itemName').value.trim();
   const qty = parseInt(document.getElementById('itemQty').value);
   const price = parseFloat(document.getElementById('itemPrice').value);
   
   if (!name || !qty || !price) {
-    alert('Please fill all item fields');
+    showToast('Please fill all item fields', 'error');
     return;
   }
   
@@ -381,6 +346,7 @@ document.getElementById('addItemBtn')?.addEventListener('click', () => {
   document.getElementById('itemName').value = '';
   document.getElementById('itemQty').value = '1';
   document.getElementById('itemPrice').value = '';
+  showToast('Item added successfully', 'success');
 });
 
 // Calculations
@@ -395,11 +361,11 @@ function updateCalculations() {
   const discount = subtotal * (discountPercent / 100);
   const grandTotal = subtotal + cgst + sgst - discount;
   
-  document.getElementById('subtotal').textContent = formatCurrency(subtotal);
-  document.getElementById('cgstAmount').textContent = formatCurrency(cgst);
-  document.getElementById('sgstAmount').textContent = formatCurrency(sgst);
-  document.getElementById('discountAmount').textContent = formatCurrency(discount);
-  document.getElementById('grandTotal').textContent = formatCurrency(grandTotal);
+  document.getElementById('summarySubtotal').textContent = formatCurrency(subtotal);
+  document.getElementById('summaryCgst').textContent = formatCurrency(cgst);
+  document.getElementById('summarySgst').textContent = formatCurrency(sgst);
+  document.getElementById('summaryDiscount').textContent = formatCurrency(discount);
+  document.getElementById('summaryGrandTotal').textContent = formatCurrency(grandTotal);
   document.getElementById('cgstLabel').textContent = cgstRate;
   document.getElementById('sgstLabel').textContent = sgstRate;
   
@@ -415,9 +381,9 @@ function updateCalculations() {
 });
 
 // Generate Invoice
-document.getElementById('generateInvoice')?.addEventListener('click', () => {
+document.getElementById('generateInvoiceBtn')?.addEventListener('click', () => {
   if (currentItems.length === 0) {
-    alert('Please add at least one item');
+    showToast('Please add at least one item', 'error');
     return;
   }
   
@@ -435,6 +401,7 @@ document.getElementById('generateInvoice')?.addEventListener('click', () => {
   
   const newInvoice = {
     id: Date.now().toString(),
+    userId: currentUserId,
     invoiceNumber: generateInvoiceNumber(),
     date: new Date().toISOString(),
     customer: { name, email, phone, address, gst },
@@ -454,13 +421,17 @@ document.getElementById('generateInvoice')?.addEventListener('click', () => {
   saveInvoices();
   selectInvoice(newInvoice.id);
   closeModalFunc();
+  
+  showToast(`✓ Invoice ${newInvoice.invoiceNumber} generated successfully! Total: ${formatCurrency(grandTotal)}`, 'success');
 });
 
 // Setup Event Listeners
 function setupEventListeners() {
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) closeModalFunc();
-  });
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModalFunc();
+    });
+  }
   
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal?.classList.contains('active')) closeModalFunc();
