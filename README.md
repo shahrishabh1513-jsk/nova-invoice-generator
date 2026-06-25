@@ -1,6 +1,7 @@
 <div align="center">
 
-# 🧾 RTInvoice
+<img width="875" height="285" alt="image-removebg-preview (2)" src="https://github.com/user-attachments/assets/fa2daab6-a2c0-4837-a0da-4e0a0aa72768" />
+
 
 <img src="https://img.icons8.com/fluency/200/invoice.png" width="120"/>
 
@@ -45,7 +46,7 @@ It allows users to create, customize, and manage invoices with real-time calcula
 
 ## 🛠 Tech Stack
 
-<p align="center">
+<p align="right">
   <img src="https://skillicons.dev/icons?i=html" height="40"/>
   <img src="https://skillicons.dev/icons?i=css" height="40"/>
   <img src="https://skillicons.dev/icons?i=js" height="40"/>
