@@ -1,0 +1,10 @@
+rt-invoice/
+├── index.html          ← Login / Signup page
+├── dashboard.html      ← Invoice dashboard
+├── css/
+│   ├── style.css       ← Global base styles, tokens, utilities
+│   ├── login.css       ← Login page styles
+│   └── dashboard.css   ← Dashboard + modal styles
+└── js/
+    ├── auth.js         ← Login, signup, session, logout
+    └── app.js          ← Invoice CRUD, calculations, print
