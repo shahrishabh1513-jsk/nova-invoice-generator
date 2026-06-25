@@ -2,9 +2,6 @@
 
 <img width="875" height="285" alt="image-removebg-preview (2)" src="https://github.com/user-attachments/assets/fa2daab6-a2c0-4837-a0da-4e0a0aa72768" />
 
-
-<img src="https://img.icons8.com/fluency/200/invoice.png" width="120"/>
-
 ### ⚡ Modern Invoice Generator Web App
 
 ![JavaScript](https://img.shields.io/badge/JavaScript-yellow)
@@ -46,7 +43,7 @@ It allows users to create, customize, and manage invoices with real-time calcula
 
 ## 🛠 Tech Stack
 
-<p align="right">
+<p align="left">
   <img src="https://skillicons.dev/icons?i=html" height="40"/>
   <img src="https://skillicons.dev/icons?i=css" height="40"/>
   <img src="https://skillicons.dev/icons?i=js" height="40"/>
